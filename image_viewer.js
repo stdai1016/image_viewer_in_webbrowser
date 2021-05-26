@@ -13,7 +13,7 @@
 // @include      *.jpeg*
 // @include      *.png*
 // @include      *.webp*
-// @version      0.1.2
+// @version      0.1.3a
 // @license      MIT
 // @grant        GM_addStyle
 // ==/UserScript==
@@ -120,23 +120,20 @@
     img.style.transform = null;
     img.setAttribute('style', img.style.cssText + 'transform:' +
       ` translate(${tx}px, ${ty}px)` +
-      ` scale(${img.dataset.scale}) rotate(${rad}rad)`
+      ` rotate(${rad}rad) scale(${img.dataset.scale})`
     );
 
     // scroll
+    let [px, py] = [img.naturalWidth / 2, img.naturalHeight / 2]
     if (img.dataset.scrollTarget.length) {
-      const scrollLeftMax = warp.scrollLeftMax || Math.max(0, iw - warp.clientWidth);
-      const scrollTopMax = warp.scrollTopMax || Math.max(0, ih - warp.clientHeight);
-
-      let [dx, dy] = img.dataset.scrollTarget.split(',').map(parseFloat);
-      [dx, dy] = rotate2D([dx, dy], rad);
-      const scrollLeftP = 0.5 + dx / im.offsetWidth;
-      const scrollTopP = 0.5 + dy / im.offsetHeight;
-
-      const w = im.parentElement;
-      w.scrollTo(scrollLeftP * scrollLeftMax,
-        scrollTopP * scrollTopMax);
+      [px, py] = img.dataset.scrollTarget.split(',').map(parseFloat);
     }
+
+    [px, py] = [px - img.naturalWidth / 2, py - img.naturalHeight / 2];
+    [px, py] = rotate2D([px, py], rad)
+      .map(v => round(v * parseFloat(img.dataset.scale)));
+    [px, py] = [iw / 2 + px, ih / 2 + py]
+    warp.scrollTo(px - warp.clientWidth / 2, py - warp.clientHeight / 2);
   }
 
   // ==========
