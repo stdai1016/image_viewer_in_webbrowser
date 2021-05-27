@@ -92,28 +92,32 @@
     return Math.max(Math.min(round(s, 6), SCALE_MAX), SCALE_MIN);
   }
 
-  // must set img.dataset.degree & img.dataset.scale & img.dataset.scrollTarget
+  // must set img.dataset.degree & img.dataset.scale & img.dataset.scroll
   function applyTransform (img) {
-    /*
-    function parseTransform (transform) {
-      const t = { translate: 0, scale: 1, rotate: 0 };
-      (transform.match(/\w+\([-\w., %]+\)/g) || []).forEach(func => {
-        const m = func.match(/(\w+)\(([-\w., %]+)\)/);
-        t[m[1]] = m[2].search(',') < 0
-          ? parseFloat(m[2])
-          : m[2].split(',').map(s => parseFloat(s.trim()));
-      });
-      return t;
-    }
-    const transformOld = parseTransform(img.style.transform);
-    */
     const warp = img.parentElement;
     const [ww, wh] = [warp.offsetWidth, warp.offsetHeight];
-    const rad = Math.PI / 180 * parseFloat(img.dataset.degree);
-    const [iw, ih] = rotatedSize([img.naturalWidth, img.naturalHeight], rad)
+    // calc pointer target
+    const f = (arr, idx, val) => arr ? arr[idx] : val;
+    const t0 = img.style.transform;
+    let tx = parseFloat(f(t0.match(/\(([-.\d]+)px, [-.\d]+px\)/), 1, 0));
+    let ty = parseFloat(f(t0.match(/\([-.\d]+px, ([-.\d]+)px\)/), 1, 0));
+    let rad = parseFloat(f(t0.match(/rotate\(([.\d]+)rad\)/), 1, 0));
+    let s = parseFloat(f(t0.match(/scale\(([.\d]+)\)/), 1, 1));
+    console.debug(`trs0 = [${tx}, ${ty}, ${rad}, ${s}]`)
+    let [iw, ih] = rotatedSize([img.naturalWidth, img.naturalHeight], rad)
+      .map(v => v * s);
+    let [sx, sy] = warp.dataset.scroll.split(' ').map(parseFloat);
+    sx = warp.scrollLeft + warp.clientWidth * sx - (iw > ww ? iw : ww) / 2;
+    sy = warp.scrollTop + warp.clientHeight * sy - (ih > wh ? ih : wh) / 2;
+    let [px, py] = rotate2D([sx, sy], -rad).map(v => v / s);
+    console.debug(`p: (${round(px, 1)}, ${round(py, 1)})`)
+
+    // calc translate
+    rad = Math.PI / 180 * parseFloat(img.dataset.degree);
+    [iw, ih] = rotatedSize([img.naturalWidth, img.naturalHeight], rad)
       .map(v => round(v * parseFloat(img.dataset.scale)));
-    const tx = ((iw >= ww ? iw : ww) - img.naturalWidth) / 2;
-    const ty = ((ih >= wh ? ih : wh) - img.naturalHeight) / 2;
+    tx = ((iw > ww ? iw : ww) - img.naturalWidth) / 2;
+    ty = ((ih > wh ? ih : wh) - img.naturalHeight) / 2;
 
     // apply
     if (iw > ww || ih > wh) img.classList.remove('fit');
@@ -125,16 +129,12 @@
     );
 
     // scroll
-    let [px, py] = [img.naturalWidth / 2, img.naturalHeight / 2];
-    if (img.dataset.scrollTarget.length) {
-      [px, py] = img.dataset.scrollTarget.split(',').map(parseFloat);
-    }
-
-    [px, py] = [px - img.naturalWidth / 2, py - img.naturalHeight / 2];
+    // [px, py] = [px - img.naturalWidth / 2, py - img.naturalHeight / 2];
     [px, py] = rotate2D([px, py], rad)
       .map(v => v * parseFloat(img.dataset.scale));
     [px, py] = [iw / 2 + px, ih / 2 + py];
     warp.scrollTo(px - warp.clientWidth / 2, py - warp.clientHeight / 2);
+    warp.dataset.scroll = '0.5 0.5';
   }
 
   // ==========
@@ -147,24 +147,28 @@
   ].join('\n'));
   document.body.insertAdjacentHTML('afterbegin', '<div id="img-warp"></div>');
   const imWarp = document.querySelector('#img-warp');
+  imWarp.dataset.scroll = '0.5 0.5';
   const im = imWarp.appendChild(document.querySelector('img').cloneNode(true));
   document.querySelectorAll('img').forEach(i => { if (i !== im) i.remove(); });
   ['class', 'width', 'height', 'style'].forEach(a => im.removeAttribute(a));
   im.dataset.degree = 0;
-  im.dataset.scrollTarget = '0.5,0.5';
-  im.onclick = function (e) {
-    if (im.classList.contains('fit')) {
-      im.dataset.scrollTarget = `${e.offsetX},${e.offsetY}`;
-      im.dataset.scale = 1;
-    } else {
-      im.dataset.scrollTarget = '';
-      im.dataset.scale = fitInScale(im);
-    }
-  };
   im.onload = function (e) {
     im.classList.remove('hidden');
     console.debug(`natural size: ${im.naturalWidth}x${im.naturalHeight}`);
     im.dataset.scale = fitInScale(im);
+  };
+  im.onclick = function (e) {
+    console.debug(`e: (${e.offsetX - im.naturalWidth / 2}, ${e.offsetY - im.naturalHeight / 2})`)
+  };
+  imWarp.onclick = function (e) {
+    if (im.classList.contains('fit')) {
+      imWarp.dataset.scroll =
+        `${e.clientX / imWarp.clientWidth} ${e.clientY / imWarp.clientHeight}`;
+      im.dataset.scale = 1;
+    } else {
+      imWarp.dataset.scroll = '0.5 0.5';
+      im.dataset.scale = fitInScale(im);
+    }
   };
   (new MutationObserver(function (records) { applyTransform(im); })).observe(im,
     { attributes: true, attributeFilter: ['data-degree', 'data-scale'] });
