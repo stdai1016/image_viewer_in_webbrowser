@@ -13,7 +13,7 @@
 // @include      *.jpeg*
 // @include      *.png*
 // @include      *.webp*
-// @version      0.1.3a
+// @version      0.1.3b
 // @license      MIT
 // @grant        GM_addStyle
 // ==/UserScript==
@@ -36,6 +36,12 @@
   // css - scale
   const BTN_SIZE = 40;
 
+  function deg360(deg) {
+    if (deg < 0) deg += 360;
+    else if (deg >= 360) deg -= 360;
+    return deg;
+  }
+
   function atan360 (x, y) {
     let deg = Math.atan(y / x) * 180 / Math.PI;
     if (x < 0) deg += 180;
@@ -56,18 +62,11 @@
   }
 
   function rotatedSize (size, rad) {
-    let [iw, ih] = size;
-    const points = [[0, 0], [iw, 0], [iw, ih], [0, ih]].map(p => {
-      // p[0] -= iw / 2;
-      // p[1] -= ih / 2;
-      p = rotate2D(p, rad);
-      // p[0] += iw / 2;
-      // p[1] += ih / 2;
-      return p;
-    });
-    iw = Math.max(...points.map(p => p[0])) - Math.min(...points.map(p => p[0]));
-    ih = Math.max(...points.map(p => p[1])) - Math.min(...points.map(p => p[1]));
-    return [iw, ih];
+    let [w, h] = size;
+    const points = [[0, 0], [w, 0], [w, h], [0, h]].map(p => rotate2D(p, rad));
+    w = Math.max(...points.map(p => p[0])) - Math.min(...points.map(p => p[0]));
+    h = Math.max(...points.map(p => p[1])) - Math.min(...points.map(p => p[1]));
+    return [w, h];
   }
 
   function fitInScale (img, only = null) {
@@ -95,30 +94,24 @@
   // must set img.dataset.degree & img.dataset.scale & img.dataset.scroll
   function applyTransform (img) {
     const warp = img.parentElement;
-    const [ww, wh] = [warp.offsetWidth, warp.offsetHeight];
-    // calc pointer target
+    // calc field of view
     const f = (arr, idx, val) => arr ? arr[idx] : val;
     const t0 = img.style.transform;
     let tx = parseFloat(f(t0.match(/\(([-.\d]+)px, [-.\d]+px\)/), 1, 0));
     let ty = parseFloat(f(t0.match(/\([-.\d]+px, ([-.\d]+)px\)/), 1, 0));
     let rad = parseFloat(f(t0.match(/rotate\(([.\d]+)rad\)/), 1, 0));
-    let s = parseFloat(f(t0.match(/scale\(([.\d]+)\)/), 1, 1));
-    console.debug(`trs0 = [${tx}, ${ty}, ${rad}, ${s}]`)
-    let [iw, ih] = rotatedSize([img.naturalWidth, img.naturalHeight], rad)
-      .map(v => v * s);
+    const s = parseFloat(f(t0.match(/scale\(([.\d]+)\)/), 1, 1));
     let [sx, sy] = warp.dataset.scroll.split(' ').map(parseFloat);
-    sx = warp.scrollLeft + warp.clientWidth * sx - (iw > ww ? iw : ww) / 2;
-    sy = warp.scrollTop + warp.clientHeight * sy - (ih > wh ? ih : wh) / 2;
+    sx = warp.scrollLeft + warp.clientWidth * sx - img.naturalWidth / 2 - tx;
+    sy = warp.scrollTop + warp.clientHeight * sy - img.naturalHeight / 2 - ty;
     let [px, py] = rotate2D([sx, sy], -rad).map(v => v / s);
-    console.debug(`p: (${round(px, 1)}, ${round(py, 1)})`)
-
     // calc translate
+    const [ww, wh] = [warp.offsetWidth, warp.offsetHeight];
     rad = Math.PI / 180 * parseFloat(img.dataset.degree);
-    [iw, ih] = rotatedSize([img.naturalWidth, img.naturalHeight], rad)
+    const [iw, ih] = rotatedSize([img.naturalWidth, img.naturalHeight], rad)
       .map(v => round(v * parseFloat(img.dataset.scale)));
     tx = ((iw > ww ? iw : ww) - img.naturalWidth) / 2;
     ty = ((ih > wh ? ih : wh) - img.naturalHeight) / 2;
-
     // apply
     if (iw > ww || ih > wh) img.classList.remove('fit');
     else img.classList.add('fit');
@@ -127,9 +120,7 @@
       ` translate(${tx}px, ${ty}px)` +
       ` rotate(${rad}rad) scale(${img.dataset.scale})`
     );
-
     // scroll
-    // [px, py] = [px - img.naturalWidth / 2, py - img.naturalHeight / 2];
     [px, py] = rotate2D([px, py], rad)
       .map(v => v * parseFloat(img.dataset.scale));
     [px, py] = [iw / 2 + px, ih / 2 + py];
@@ -156,9 +147,6 @@
     im.classList.remove('hidden');
     console.debug(`natural size: ${im.naturalWidth}x${im.naturalHeight}`);
     im.dataset.scale = fitInScale(im);
-  };
-  im.onclick = function (e) {
-    console.debug(`e: (${e.offsetX - im.naturalWidth / 2}, ${e.offsetY - im.naturalHeight / 2})`)
   };
   imWarp.onclick = function (e) {
     if (im.classList.contains('fit')) {
@@ -202,7 +190,7 @@
         break;
       case 'Dight4':
       case 'Numpad4':
-        im.dataset.degree = parseFloat(im.dataset.degree) - 10;
+        im.dataset.degree = deg360(parseFloat(im.dataset.degree) - 10);
         break;
       case 'Dight5':
       case 'Numpad5':
@@ -210,7 +198,7 @@
         break;
       case 'Dight6':
       case 'Numpad6':
-        im.dataset.degree = parseFloat(im.dataset.degree) + 10;
+        im.dataset.degree = deg360(parseFloat(im.dataset.degree) + 10);
         break;
       case 'Dight7':
       case 'Numpad7':
@@ -294,8 +282,8 @@
     const y = e.offsetX - degWheel.clientWidth / 2;
     const x = degWheel.clientHeight / 2 - e.offsetY;
     if (Math.sqrt(x * x + y * y) < degWheel.clientWidth / 2) return;
-    const deg = atan360(x, y) + parseInt(im.dataset.degree);
-    im.dataset.degree = Math.floor(deg < 360 ? deg : deg - 360);
+    const deg = deg360(atan360(x, y) + parseInt(im.dataset.degree));
+    im.dataset.degree = Math.floor(deg);
   };
   const degHandle = degGroup.appendChild(document.createElement('div'));
   degHandle.classList.add('input', 'deg-wheel-handle', 'hidden');
