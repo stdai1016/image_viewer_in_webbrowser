@@ -94,6 +94,7 @@
 
   // must set img.dataset.degree & img.dataset.scale & img.dataset.scrollTarget
   function applyTransform (img) {
+    /*
     function parseTransform (transform) {
       const t = { translate: 0, scale: 1, rotate: 0 };
       (transform.match(/\w+\([-\w., %]+\)/g) || []).forEach(func => {
@@ -105,7 +106,7 @@
       return t;
     }
     const transformOld = parseTransform(img.style.transform);
-
+    */
     const warp = img.parentElement;
     const [ww, wh] = [warp.offsetWidth, warp.offsetHeight];
     const rad = Math.PI / 180 * parseFloat(img.dataset.degree);
@@ -124,15 +125,15 @@
     );
 
     // scroll
-    let [px, py] = [img.naturalWidth / 2, img.naturalHeight / 2]
+    let [px, py] = [img.naturalWidth / 2, img.naturalHeight / 2];
     if (img.dataset.scrollTarget.length) {
       [px, py] = img.dataset.scrollTarget.split(',').map(parseFloat);
     }
 
     [px, py] = [px - img.naturalWidth / 2, py - img.naturalHeight / 2];
     [px, py] = rotate2D([px, py], rad)
-      .map(v => round(v * parseFloat(img.dataset.scale)));
-    [px, py] = [iw / 2 + px, ih / 2 + py]
+      .map(v => v * parseFloat(img.dataset.scale));
+    [px, py] = [iw / 2 + px, ih / 2 + py];
     warp.scrollTo(px - warp.clientWidth / 2, py - warp.clientHeight / 2);
   }
 
@@ -144,16 +145,13 @@
     '#img-warp img {margin:0}',
     '.hidden {display:none !important;}'
   ].join('\n'));
-  const imWarp = document.createElement('div');
-  document.body.insertBefore(imWarp, document.body.firstChild);
-  imWarp.id = 'img-warp';
-  let im = document.body.querySelector('img');
-  imWarp.insertBefore(im.cloneNode(true), imWarp.firstChild);
-  im.remove();
-  im = document.body.querySelector('#img-warp img');
+  document.body.insertAdjacentHTML('afterbegin', '<div id="img-warp"></div>');
+  const imWarp = document.querySelector('#img-warp');
+  const im = imWarp.appendChild(document.querySelector('img').cloneNode(true));
+  document.querySelectorAll('img').forEach(i => { if (i !== im) i.remove(); });
   ['class', 'width', 'height', 'style'].forEach(a => im.removeAttribute(a));
   im.dataset.degree = 0;
-  im.dataset.scrollTarget = '';
+  im.dataset.scrollTarget = '0.5,0.5';
   im.onclick = function (e) {
     if (im.classList.contains('fit')) {
       im.dataset.scrollTarget = `${e.offsetX},${e.offsetY}`;
@@ -235,10 +233,8 @@
   };
 
   // ========== general & menu ==========
-  const link = document.head.appendChild(document.createElement('link'));
-  link.setAttribute('rel', 'stylesheet');
-  link.setAttribute('href',
-    'https://fonts.googleapis.com/css?family=Material+Icons+Outlined');
+  document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet"' +
+    ' href="https://fonts.googleapis.com/css?family=Material+Icons+Outlined">');
 
   GM_addStyle([
     '.input {position:fixed;opacity:0.8;}',
