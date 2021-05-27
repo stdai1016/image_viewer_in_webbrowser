@@ -1,5 +1,5 @@
 /** Image Viewer
- *  This userscript is an image viewer in webbrowser.
+ *  This userscript is an image viewer in web browser.
  *  It will modify the ImageDocument.
  *  Works on last verson of Firefox and Chrome (not well).
  */
@@ -13,7 +13,7 @@
 // @include      *.jpeg*
 // @include      *.png*
 // @include      *.webp*
-// @version      0.1.3b
+// @version      0.1.3
 // @license      MIT
 // @grant        GM_addStyle
 // ==/UserScript==
@@ -113,8 +113,8 @@
     tx = ((iw > ww ? iw : ww) - img.naturalWidth) / 2;
     ty = ((ih > wh ? ih : wh) - img.naturalHeight) / 2;
     // apply
-    if (iw > ww || ih > wh) img.classList.remove('fit');
-    else img.classList.add('fit');
+    if (iw === ww || ih === wh) img.classList.add('fit');
+    else img.classList.remove('fit');
     img.style.transform = null;
     img.setAttribute('style', img.style.cssText + 'transform:' +
       ` translate(${tx}px, ${ty}px)` +
