@@ -165,6 +165,7 @@
     applyTransform(im);
   };
   document.onkeydown = function (e) {
+    if (e.target !== document.body) return;
     const STEP = 10;
     let preventDefault = true;
     switch (e.code) {
@@ -282,8 +283,8 @@
     const y = e.offsetX - degWheel.clientWidth / 2;
     const x = degWheel.clientHeight / 2 - e.offsetY;
     if (Math.sqrt(x * x + y * y) < degWheel.clientWidth / 2) return;
-    const deg = deg360(atan360(x, y) + parseInt(im.dataset.degree));
-    im.dataset.degree = Math.floor(deg);
+    const deg = deg360(Math.floor(atan360(x, y)) + parseInt(im.dataset.degree));
+    if (deg - parseInt(im.dataset.degree)) im.dataset.degree = deg;
   };
   const degHandle = degGroup.appendChild(document.createElement('div'));
   degHandle.classList.add('input', 'deg-wheel-handle', 'hidden');
@@ -292,8 +293,8 @@
     if (e.clientX === 0 || e.clientY === 0) return;
     const y = e.clientX - window.innerWidth / 2;
     const x = window.innerHeight / 2 - e.clientY;
-    const deg = atan360(x, y);
-    im.dataset.degree = Math.floor(deg);
+    const deg = Math.floor(atan360(x, y));
+    if (deg - parseInt(im.dataset.degree)) im.dataset.degree = deg;
   }
   degHandle.ondragstart = function (e) {
     const clone = document.querySelector('#degHandle_clone') || (function () {
