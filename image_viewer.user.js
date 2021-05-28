@@ -36,7 +36,7 @@
   // css - scale
   const BTN_SIZE = 40;
 
-  function deg360(deg) {
+  function deg360 (deg) {
     if (deg < 0) deg += 360;
     else if (deg >= 360) deg -= 360;
     return deg;

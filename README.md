@@ -36,8 +36,6 @@ Click the screen to quickly zoom in/out a large image.
 Click the hidden button at left-bottom to open the control panel;
 click the background to close the panel.
 
-
-
 ## Updates
 
 * v0.1.3 - Fixed problem of scrolling when rotating and scaling.
